@@ -5,7 +5,6 @@ This module contains reusable functions for both training and inference.
 
 import re
 import string
-from typing import str
 
 
 def preprocess_text(text: str) -> str:

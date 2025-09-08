@@ -59,6 +59,13 @@ def load_and_preprocess_data(file_path: str) -> tuple[pd.DataFrame, pd.Series]:
     print(f"Top 10 most common HSCodes:")
     print(unique_hscodes.head(10))
     
+    # Remove HSCodes with less than 3 samples (for better stratified splitting)
+    hscode_counts = df['cleaned_hscode'].value_counts()
+    valid_hscodes = hscode_counts[hscode_counts >= 3].index
+    df = df[df['cleaned_hscode'].isin(valid_hscodes)]
+    print(f"After removing HSCodes with < 3 samples: {len(df)} samples")
+    print(f"Number of unique HSCodes after filtering: {df['cleaned_hscode'].nunique()}")
+    
     # Prepare features and target
     X = df['cleaned_description']
     y = df['cleaned_hscode']
@@ -80,9 +87,22 @@ def train_model(X, y, test_size: float = 0.2, random_state: int = 42):
         tuple: Trained model, vectorizer, X_test, y_test
     """
     print("Splitting data into train and test sets...")
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state, stratify=y
-    )
+    # Use smaller test size if we have too many classes
+    unique_classes = y.nunique()
+    if unique_classes > len(y) * test_size:
+        test_size = min(0.15, unique_classes / len(y))
+        print(f"Adjusted test_size to {test_size:.3f} due to many classes")
+    
+    try:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=random_state, stratify=y
+        )
+    except ValueError as e:
+        print(f"Stratified split failed: {e}")
+        print("Using random split instead...")
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=random_state
+        )
     
     print(f"Training set size: {len(X_train)}")
     print(f"Test set size: {len(X_test)}")
